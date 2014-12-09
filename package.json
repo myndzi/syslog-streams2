@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "istanbul cover node_modules/.bin/_mocha -- -u bdd -R spec --bail test.js;jshint index.js"
   },
   "author": "",
   "license": "ISC",
@@ -15,6 +15,8 @@
     "language-tags": "^1.0.2"
   },
   "devDependencies": {
+    "istanbul": "^0.3.5",
+    "jshint": "^2.5.10",
     "mocha": "^2.0.1",
     "should": "^4.3.1"
   }

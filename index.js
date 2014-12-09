@@ -57,7 +57,7 @@ var structuredData = Joi.object().keys({
     })
 });
 
-function SyslogStream(opts) {
+function SyslogStream(opts) { // jshint maxcomplexity: 20
     Transform.call(this);
     
     this._writableState.objectMode = true;
@@ -83,7 +83,7 @@ function SyslogStream(opts) {
 }
 inherits(SyslogStream, Transform);
 
-SyslogStream.prototype._transform = function (_record, NA, callback) {
+SyslogStream.prototype._transform = function (_record, NA, callback) { // jshint maxstatements: 25, maxcomplexity: 12
     var valid, str, record = clone(_record);
     
     if (this.decodeBuffers && Buffer.isBuffer(record)) {
@@ -151,6 +151,17 @@ SyslogStream.prototype.buildJSONMessage = function (obj) {
 SyslogStream.prototype.buildGlossyMessage = function (record) {
     record.severity = record.severity || this.defaultSeverity;
     
+    var structured = this.useStructuredData && record.structuredData ?
+        this.validateStructuredData(record.structuredData) : { };
+    
+    if (structured.data) {
+        record.structuredData = structured.data;
+    }
+    
+    if (structured.extra) {
+        record.message += ' ' + this.formatObject(structured.extra);
+    }
+
     return this.glossy.produce(record);
 };
 
@@ -176,10 +187,6 @@ var SYSLOG = {
     }
 };
 var bunyanFields = { facility:1, level:1, hostname:1, name:1, pid:1, time:1, msg:1, msgId:1, v:1 };
-function isValidDate(date) {
-    var d = new Date(d);
-    return !isNaN(d.getTime());
-};
 SyslogStream.prototype.buildBunyanMessage = function (source) {
     var extra = Object.keys(source).filter(function (key) {
         return !(key in bunyanFields);
@@ -200,11 +207,11 @@ SyslogStream.prototype.buildBunyanMessage = function (source) {
         pid: source.pid,
         date: source.time,
         msgID: source.msgId,
-        message: source.msg + (structured.extra ? ' '+JSON.stringify(structured.extra) : ''),
+        message: source.msg + (structured.extra ? ' ' + this.formatObject(structured.extra) : ''),
         structuredData: structured.data
     });
 };
-SyslogStream.prototype.convertBunyanLevel = function (level) {
+SyslogStream.prototype.convertBunyanLevel = function (level) { // jshint maxstatements: 18, maxcomplexity: 10
     if (typeof level === 'string') { level = BUNYAN[level.toUpperCase()]; }
     level = parseInt(level, 10);
     

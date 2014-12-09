@@ -412,4 +412,94 @@ describe('Message parsing', function () {
             getMsg(obj).should.match(/\{"foo":"\[Circular\]"\}$/);
         });
     });
+    describe('convertBunyanLevel', function () {
+        it('should return the correct syslog mapping for the given bunyan level', function () {
+            [ [ BUNYAN.FATAL, SYSLOG.LEVEL.EMERG ],
+              [ BUNYAN.ERROR, SYSLOG.LEVEL.ERR ],
+              [ BUNYAN.WARN, SYSLOG.LEVEL.WARNING ],
+              [ BUNYAN.INFO, SYSLOG.LEVEL.NOTICE ],
+              [ BUNYAN.DEBUG, SYSLOG.LEVEL.INFO ],
+              [ BUNYAN.TRACE, SYSLOG.LEVEL.DEBUG ] ]
+            .forEach(function (pair) {
+                syslog.convertBunyanLevel(pair[0]).should.equal(pair[1]);
+            });
+        });
+        it('should return a valid syslog mapping for other log values not mapped directly to bunyan log names', function () {
+            [ [ 99, SYSLOG.LEVEL.EMERG ],
+              [ 53, SYSLOG.LEVEL.ERR ],
+              [ 42, SYSLOG.LEVEL.WARNING ],
+              [ 31, SYSLOG.LEVEL.NOTICE ],
+              [ 28, SYSLOG.LEVEL.INFO ],
+              [ 11, SYSLOG.LEVEL.DEBUG ],
+              [ 7,  SYSLOG.LEVEL.DEBUG ],
+              [ 'foo', SYSLOG.LEVEL.NOTICE ] ]
+            .forEach(function (pair) {
+                syslog.convertBunyanLevel(pair[0]).should.equal(pair[1]);
+            });
+        });
+        it('should accept (case-insensitive) strings', function () {
+            [ [ 'Fatal', SYSLOG.LEVEL.EMERG ],
+              [ 'Error', SYSLOG.LEVEL.ERR ],
+              [ 'Warn', SYSLOG.LEVEL.WARNING ],
+              [ 'infO', SYSLOG.LEVEL.NOTICE ],
+              [ 'debuG', SYSLOG.LEVEL.INFO ],
+              [ 'tracE', SYSLOG.LEVEL.DEBUG ] ]
+            .forEach(function (pair) {
+                syslog.convertBunyanLevel(pair[0]).should.equal(pair[1]);
+            });
+        });
+        it('should return the syslog notice level for invalid values', function () {
+            [null, new Date(), 'foo', [ ]]
+            .forEach(function (val) {
+                syslog.convertBunyanLevel(val).should.equal(SYSLOG.LEVEL.NOTICE);
+            });
+        });
+    });
+    describe('glossy record', function () {
+        it('should output a message', function () {
+            getMsg({
+                message: 'foo'
+            }).should.match(/foo$/);
+        });
+        it('should process structured data', function () {
+            getMsg({
+                message: 'hai',
+                structuredData: {
+                    '@': 'foo'
+                }
+            }).should.match(/{"@":"foo"}$/);
+            
+            getMsg({
+                message: 'foo',
+                structuredData: {
+                    timeQuality: {
+                        tzKnown: 1,
+                        isSynced: 1,
+                        syncAccuracy: 123
+                    },
+                    origin: {
+                        ip: ['127.0.0.1', 'foo.bar'],
+                        enterpriseId: '3434.34355',
+                        software: 'keke',
+                        swVersion: '1.2.3'
+                    },
+                    meta: {
+                        sequenceId: 55,
+                        sysUpTime: 21355,
+                        language: 'fr'
+                    }
+                }
+            }).should.containEql(
+                '[timeQuality tzKnown="1" isSynced="1" syncAccuracy="123"]'+
+                '[origin ip="127.0.0.1" ip="foo.bar" enterpriseId="3434.34355" software="keke" swVersion="1.2.3"]'+
+                '[meta sequenceId="55" sysUpTime="21355" language="fr"]'
+            );
+        });
+        it('should fall back on JSON with invalid data', function () {
+            getMsg({
+                appName: null,
+                message: 'foo'
+            }).should.containEql('{"appName":null,"message":"foo"}');
+        });
+    });
 });
