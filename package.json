@@ -1,12 +1,12 @@
 {
   "name": "syslog-streams2",
   "version": "1.0.0",
-  "description": "",
+  "description": "Streams2 implementation that inputs plain strings, bunyan records, glossy records, and outputs syslog formatted strings",
   "main": "index.js",
   "scripts": {
     "test": "istanbul cover node_modules/.bin/_mocha -- -u bdd -R spec --bail test.js;jshint index.js"
   },
-  "author": "",
+  "author": "Kris Reeves",
   "license": "ISC",
   "dependencies": {
     "clone": "^0.1.19",
