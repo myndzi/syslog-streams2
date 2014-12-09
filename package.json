@@ -1,0 +1,21 @@
+{
+  "name": "syslog-streams2",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "clone": "^0.1.19",
+    "glossy": "^0.1.7",
+    "joi": "^5.0.2",
+    "language-tags": "^1.0.2"
+  },
+  "devDependencies": {
+    "mocha": "^2.0.1",
+    "should": "^4.3.1"
+  }
+}
