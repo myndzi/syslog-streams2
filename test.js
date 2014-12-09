@@ -1,7 +1,8 @@
 'use strict';
 
 var SyslogStream = require('./index'),
-    format = require('util').format;
+    format = require('util').format,
+    os = require('os');
 
 require('should');
 
@@ -69,21 +70,23 @@ var SYSLOG = {
         LOCAL7: 23
     }
 };
-describe('Message parsing', function () {
+describe('SyslogStream', function () {
     var syslog, stream;
     
     // cheating - relying on emit's synchronous behavior
-    function getMsg(r) {
+    function getMsg(r, log) {
         var msg;
-        syslog.once('data', function (chunk) {
+        if (!log) { log = syslog; }
+        
+        log.once('data', function (chunk) {
             msg = chunk.toString();
         });
-        syslog.write(r);
+        log.write(r);
         return msg.replace(/\r?\n$/, '');
     }
-    function getHeader(r) {
-        var msg = getMsg(r);
-        return msg.split(' ').slice(0, 6).join(' ');
+    function getHeader(r, log) {
+        var msg = getMsg(r, log);
+        return msg.split(' ').slice(0, 7);
     }
     
     beforeEach(function () {
@@ -100,6 +103,158 @@ describe('Message parsing', function () {
         syslog.end(done);
     });
 
+    describe('constructor', function () {
+        it('provides default values', function () {
+            var log = new SyslogStream();
+            ['type', 'facility', 'host', 'appName', 'msgID', 'pid']
+            .forEach(function (type) {
+                log.glossy[type].should.be.ok;
+            });
+            log.decodeBuffers.should.equal(false);
+            log.decodeJSON.should.equal(false);
+            log.defaultSeverity.should.equal('notice');
+        });
+        describe('appName', function () {
+            var _title = process.title,
+                _argv = process.argv;
+            beforeEach(function () {
+                delete process.title;
+                delete process.argv;
+            });
+            afterEach(function () {
+                process.title = _title;
+                process.argv = _argv;
+            });
+            
+            it('should respect the specified value', function () {
+                var log = new SyslogStream({ appName: TEST.NAME });
+                getHeader('bar', log)[3].should.equal(TEST.NAME);
+                
+                var log = new SyslogStream({ name: TEST.NAME });
+                getHeader('bar', log)[3].should.equal(TEST.NAME);
+            });
+            it('should fall back on process.title', function () {
+                process.title = 'process.title';
+                
+                var log = new SyslogStream();
+                getHeader('bar', log)[3].should.equal('process.title');
+            });
+            it('should fall back on process.argv[0]', function () {
+                process.argv = ['process.argv'];
+                
+                var log = new SyslogStream();
+                getHeader('bar', log)[3].should.equal('process.argv');
+            });
+            it('should fall back on NILVALUE', function () {
+                var log = new SyslogStream();
+                getHeader('bar', log)[3].should.equal(SYSLOG.NILVALUE);
+            });
+        });
+        describe('hostname', function () {
+            var _os_hostname = os.hostname;
+            beforeEach(function () {
+                os.hostname = function () { };
+            });
+            afterEach(function () {
+                os.hostname = _os_hostname;
+            });
+            it('should respect the specified hostname', function () {
+                var log = new SyslogStream({ host: TEST.HOSTNAME });
+                getHeader('bar', log)[2].should.equal(TEST.HOSTNAME);
+                
+                var log = new SyslogStream({ hostname: TEST.HOSTNAME });
+                getHeader('bar', log)[2].should.equal(TEST.HOSTNAME);
+            });
+            it('should fall back on os.hostname()', function () {
+                os.hostname = function () { return 'os.hostname'; }
+                
+                var log = new SyslogStream();
+                getHeader('bar', log)[2].should.equal('os.hostname');
+            });
+            it('should fall back on NILVALUE', function () {
+                var log = new SyslogStream();
+                getHeader('bar', log)[2].should.equal(SYSLOG.NILVALUE);
+            });
+        });
+        describe('pid', function () {
+            var _pid = process.pid;
+            beforeEach(function () {
+                delete process.pid;
+            });
+            afterEach(function () {
+                process.pid = _pid
+            });
+            it('should respect the specified pid', function () {
+                var log = new SyslogStream({ pid: 1 });
+                getHeader('bar', log)[4].should.equal('1');
+            });
+            it('should fall back on process.pid', function () {
+                process.pid = 2;
+                
+                var log = new SyslogStream();
+                getHeader('bar', log)[4].should.equal('2');
+            });
+            it('should fall back on NILVALUE', function () {
+                var log = new SyslogStream();
+                getHeader('bar', log)[4].should.equal(SYSLOG.NILVALUE);
+            });
+        });
+        describe('msgID', function () {
+            it('should respect the specified hostname', function () {
+                var log = new SyslogStream({ msgID: TEST.MSG_ID });
+                getHeader('bar', log)[5].should.equal(TEST.MSG_ID);
+                
+                var log = new SyslogStream({ msgId: TEST.MSG_ID });
+                getHeader('bar', log)[5].should.equal(TEST.MSG_ID);
+            });
+            it('should fall back on NILVALUE', function () {
+                var log = new SyslogStream();
+                getHeader('bar', log)[5].should.equal(SYSLOG.NILVALUE);
+            });
+        });
+        it('should respect the decodeBuffers option', function () {
+            var log = new SyslogStream({
+                decodeBuffers: true
+            });
+            getMsg(new Buffer('foo'), log).should.match(/foo$/);
+            
+            var log = new SyslogStream({
+                decodeBuffers: false
+            });
+            getMsg(new Buffer('foo'), log).should.match(/\[102,111,111\]$/);
+        });
+        it('should respect the decodeJSON option', function () {
+            var log = new SyslogStream({
+                decodeJSON: true
+            });
+            getMsg('{"msg":"foo"}', log).should.match(/foo$/);
+            
+            var log = new SyslogStream({
+                decodeJSON: false
+            });
+            getMsg('{"msg":"foo"}', log).should.match(/\{"msg":"foo"\}$/);
+        });
+        it('should allow decodeBuffers and decodeJSON to work together', function () {
+            var log = new SyslogStream({
+                decodeBuffers: true,
+                decodeJSON: true
+            });
+            getMsg(new Buffer('{"msg":"foo"}'), log).should.match(/foo$/);
+        });
+        it('should respect the useStructuredData option', function () {
+            var log = new SyslogStream({ useStructuredData: true, PEN: 1 });
+            getMsg({ msg: 'foo', data: { bar: 'baz' } }, log).should.match(/\[data@1 bar="baz"\] foo$/);
+            
+            var log = new SyslogStream({ useStructuredData: true });
+            getMsg({ msg: 'foo' }, log).should.match(/- foo$/);
+            
+            var log = new SyslogStream({ useStructuredData: false, PEN: 1 });
+            getMsg({ msg: 'foo', data: { bar: 'baz' } }, log).should.match(/- foo \{"data":\{"bar":"baz"\}\}$/);
+            
+            var log = new SyslogStream({ useStructuredData: false});
+            getMsg({ msg: 'foo' }, log).should.match(/- foo$/);
+        });
+    });
     describe('message', function () {
         it('should accept plain text strings', function () {
             getMsg('foo').should.match(syslogRegex);
@@ -127,10 +282,10 @@ describe('Message parsing', function () {
         }
         function header(rec, token) {
             if (arguments.length === 1) {
-                return getHeader({ msg: 'foo' }).split(' ')[rec];
+                return getHeader({ msg: 'foo' })[rec];
             }
             rec.msg = rec.msg || 'foo';
-            return getHeader(rec).split(' ')[token];
+            return getHeader(rec)[token];
         }
 
         describe('priority', function () {
@@ -138,11 +293,14 @@ describe('Message parsing', function () {
             it('should default the level to BUNYAN.INFO', function () {
                 header(0).should.match(priority(BUNYAN.INFO, DEF_FACILITY));
             });
+            it('should default the facility to local0', function () {
+                var log = new SyslogStream();
+                getHeader('foo', log)[0].should.match(priority(BUNYAN.INFO, SYSLOG.FACILITY.LOCAL0));
+            });
             it('should reflect explicitly specified levels', function () {
                 header({ level: 'fatal' }, 0).should.match(priority(BUNYAN.FATAL, DEF_FACILITY));
             });
         });
-        
         describe('time', function () {
             it('should default the timestamp to the current time', function () {
                 var now = new Date();
@@ -160,71 +318,26 @@ describe('Message parsing', function () {
                 header({ time: 'foo' }, 1).should.equal(SYSLOG.NILVALUE);
             });
         });
-        describe('hostname', function () {
-            it('should default to the specified hostname', function () {
-                header(2).should.equal(TEST.HOSTNAME);
-            });
-            it('should reflect explicitly specified hostname', function () {
-                header({ hostname: 'foo.bar' }, 2).should.equal('foo.bar');
-            });
-            it('should fall back on NILVALUE', function () {
-                var _hostname = syslog.glossy.host;
-                syslog.glossy.host = null;
-                header(2).should.equal(SYSLOG.NILVALUE);
-                syslog.glossy.host = _hostname;
-            });
+        it('should supply hostname', function () {
+            header(2).should.equal(TEST.HOSTNAME);
         });
-        describe('appName', function () {
-            it('should default to the specified appName', function () {
-                header(3).should.equal(TEST.NAME);
-            });
-            it('should reflect explicitly specified appName', function () {
-                header({ name: 'keke' }, 3).should.equal('keke');
-            });
-            it('should fall back on NILVALUE', function () {
-                var _appName = syslog.glossy.appName;
-                delete syslog.glossy.appName;
-                header(3).should.equal(SYSLOG.NILVALUE);
-                syslog.glossy.appName = _appName;
-            });
+        it('should supply appName', function () {
+            header(3).should.equal(TEST.NAME);
         });
-        describe('procId', function () {
-            it('should default to process.pid', function () {
-                header(4).should.eql(String(process.pid));
-            });
-            it('should reflect explicitly specified procId', function () {
-                header({ pid: 123 }, 4).should.equal('123');
-            });
-            it('should use process.pid if not given a valid integer', function () {
-                header({ pid: 'foo' }, 4).should.eql(String(process.pid));
-                header({ pid: -2 }, 4).should.eql(String(process.pid));
-            });
-            it('should fall back on NILVALUE', function () {
-                var _pid = syslog.glossy.pid;
-                delete syslog.glossy.pid;
-                header(4).should.equal(SYSLOG.NILVALUE);
-                syslog.glossy.pid = _pid;
-            });
+        it('should supply procId', function () {
+            header(4).should.eql(String(process.pid));
         });
-        describe('msgId', function () {
-            it('should default to the specified msgId', function () {
-                header(5).should.equal(TEST.MSG_ID);
-            });
-            it('should reflect explicitly specified msgId', function () {
-                header({ msgId: 'unf' }, 5).should.equal('unf');
-            });
-            it('should fall back on NILVALUE', function () {
-                var _msgId = syslog.glossy.msgID;
-                delete syslog.glossy.msgID;
-                header(5).should.equal(SYSLOG.NILVALUE);
-                syslog.glossy.msgID = _msgId;
-            });
+        it('should supply msgId', function () {
+            header(5).should.equal(TEST.MSG_ID);
+        });
+        it('should supply structuredData as NILVALUE when none is given', function () {
+            header(6).should.equal(SYSLOG.NILVALUE);
         });
     });
     describe('structured data', function () {
-        function SD(r) {
+        function SD(r, log) {
             r.msg = 'foo';
-            var msg = getMsg(r);
+            var msg = getMsg(r, log);
 
             var matched = msg.split(' ').slice(6).join(' ').replace(/\\\\/, '').match(/(\[(\\\]|[^\]])+\])+/);
             
@@ -349,6 +462,12 @@ describe('Message parsing', function () {
         });
         describe('custom SDIDs', function () {
             var PEN = TEST.PEN;
+            it('should not produce custom structured data if PEN is invalid', function () {
+                var log = new SyslogStream({
+                    PEN: 'foo'
+                });
+                SD({ foo: { bar: 123 } }, log).should.equal('');
+            });
             it('should format any extra keys as structured data; SDID should contain the PEN', function () {
                 SD({ foo: { bar: 123 } }).should.equal('[foo@'+PEN+' bar="123"]');
             });
@@ -453,6 +572,49 @@ describe('Message parsing', function () {
             .forEach(function (val) {
                 syslog.convertBunyanLevel(val).should.equal(SYSLOG.LEVEL.NOTICE);
             });
+        });
+    });
+    describe('bunyan record', function () {
+        it('should output a message', function () {
+            getMsg({
+                msg: 'foo'
+            }).should.match(/foo$/);
+        });
+        it('should process structured data', function () {
+            getMsg({
+                msg: 'hai',
+                '@': 'foo'
+            }).should.match(/{"@":"foo"}$/);
+            
+            getMsg({
+                msg: 'foo',
+                timeQuality: {
+                    tzKnown: 1,
+                    isSynced: 1,
+                    syncAccuracy: 123
+                },
+                origin: {
+                    ip: ['127.0.0.1', 'foo.bar'],
+                    enterpriseId: '3434.34355',
+                    software: 'keke',
+                    swVersion: '1.2.3'
+                },
+                meta: {
+                    sequenceId: 55,
+                    sysUpTime: 21355,
+                    language: 'fr'
+                }
+            }).should.containEql(
+                '[timeQuality tzKnown="1" isSynced="1" syncAccuracy="123"]'+
+                '[origin ip="127.0.0.1" ip="foo.bar" enterpriseId="3434.34355" software="keke" swVersion="1.2.3"]'+
+                '[meta sequenceId="55" sysUpTime="21355" language="fr"]'
+            );
+        });
+        it('should fall back on JSON with invalid data', function () {
+            getMsg({
+                v: 'bar',
+                msg: 'foo'
+            }).should.containEql('{"v":"bar","msg":"foo"}');
         });
     });
     describe('glossy record', function () {

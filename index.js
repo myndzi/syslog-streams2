@@ -66,8 +66,8 @@ function SyslogStream(opts) { // jshint maxcomplexity: 20
     
     this.decodeBuffers = opts.hasOwnProperty('decodeBuffers') ? opts.decodeBuffers : false;
     this.decodeJSON = opts.hasOwnProperty('decodeJSON') ? opts.decodeJSON : false;
-    this.useStructuredData = !opts.type;
-    this.defaultSeverity = opts.defaultSeverity || opts.defaultLevel || 'info';
+    this.useStructuredData = opts.hasOwnProperty('useStructuredData') ? opts.useStructuredData : !opts.type;
+    this.defaultSeverity = opts.defaultSeverity || opts.defaultLevel || 'notice';
     var PEN = parseInt(opts.PEN, 10);
     this.PEN = !isNaN(PEN) ? PEN : null;
     
@@ -116,7 +116,7 @@ SyslogStream.prototype._transform = function (_record, NA, callback) { // jshint
     }
     
     if (!str || str === false) {
-        str = this.buildJSONMessage(record);
+        str = this.buildJSONMessage(clone(_record));
     }
     
     this.push(str+'\n');
