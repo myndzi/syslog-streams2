@@ -8,6 +8,16 @@
   },
   "author": "Kris Reeves",
   "license": "ISC",
+  "keywords": [
+    "glossy",
+    "bunyan",
+    "syslog",
+    "stream",
+    "streams2",
+    "structured",
+    "data",
+    "rfc5424"
+  ],
   "dependencies": {
     "clone": "^0.1.19",
     "glossy": "^0.1.7",
