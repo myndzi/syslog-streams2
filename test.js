@@ -221,7 +221,13 @@ describe('SyslogStream', function () {
             var log = new SyslogStream({
                 decodeBuffers: false
             });
-            getMsg(new Buffer('foo'), log).should.match(/\[102,111,111\]$/);
+            
+            try {
+                getMsg(new Buffer('foo'), log).should.match(/\[102,111,111\]$/);
+            } catch (e) {
+                getMsg(new Buffer('foo'), log).should.match(/\{"type":"Buffer","data":\[102,111,111\]\}$/);
+            }
+                
         });
         it('should respect the decodeJSON option', function () {
             var log = new SyslogStream({

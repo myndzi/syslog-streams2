@@ -1,6 +1,6 @@
 {
   "name": "syslog-streams2",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Streams2 implementation that inputs plain strings, bunyan records, glossy records, and outputs syslog formatted strings",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,7 @@
   ],
   "dependencies": {
     "clone": "^0.1.19",
-    "glossy": "^0.1.7",
+    "glossy": "git+https://github.com/myndzi/glossy#v0.1.7+patches",
     "joi": "^5.0.2",
     "language-tags": "^1.0.2"
   },
