@@ -1,7 +1,11 @@
 {
   "name": "syslog-streams2",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Streams2 implementation that inputs plain strings, bunyan records, glossy records, and outputs syslog formatted strings",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myndzi/syslog-streams2"
+  },
   "main": "index.js",
   "scripts": {
     "test": "istanbul cover node_modules/.bin/_mocha -- -u bdd -R spec --bail test.js;jshint index.js"
