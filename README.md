@@ -21,9 +21,9 @@ Some options are supported:
 		
 		type: <string>,
 		facility: <string>,
-		host: <string>,
-		appName: <string>,
-		msgId: <string>,
+		{host|hostname}: <string>,
+		{name|appName}: <string>,
+		{msgId|msgID}: <string>,
 		pid: <integer>
 	});
 
@@ -76,7 +76,7 @@ Valid facilities are:
 	LOCAL6 - Local use 6
 	LOCAL7 - Local use 7
 
-### host
+### host / hostname
 The hostname of the system generating the log message. Defaults to `os.hostname()`, falls back on the nil value(`-`). Can be overriden in `.write()`.
 
 From RFC5424:
@@ -102,15 +102,14 @@ From RFC5424:
 ### pid
 The process id of the process generating the log message. Defaults to `process.pid`, falls back on the nil value(`-`). Can be overridden in `.write()`. 
 
-### appName
+### name / appName
 The app name to use when logging messages. Defaults to `process.title`, falls back on `process.argv[0]` followed by the nil value(`-`). Can be overriden in `.write()`.
 
 	The APP-NAME field SHOULD identify the device or application that
 	originated the message.  It is a string without further semantics.
 	It is intended for filtering messages on a relay or collector.
 
-
-### msgId
+### msgId / msgID
 The message id to use when logging messages. Defaults to the nil value. Can be overriden in `.write()`.
 
 	The MSGID SHOULD identify the type of message.  For example, a
