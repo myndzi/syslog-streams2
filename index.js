@@ -4,7 +4,7 @@ var Transform = require('stream').Transform,
     inherits = require('util').inherits,
     os = require('os');
 
-var Producer = require('glossy').Produce;
+var Producer = require('@myndzi/glossy').Produce;
 
 var clone = require('clone'),
     tags = require('language-tags'),
@@ -59,18 +59,18 @@ var structuredData = Joi.object().keys({
 
 function SyslogStream(opts) { // jshint maxcomplexity: 20
     Transform.call(this);
-    
+
     this._writableState.objectMode = true;
-    
+
     opts = opts || { };
-    
+
     this.decodeBuffers = opts.hasOwnProperty('decodeBuffers') ? opts.decodeBuffers : false;
     this.decodeJSON = opts.hasOwnProperty('decodeJSON') ? opts.decodeJSON : false;
     this.useStructuredData = opts.hasOwnProperty('useStructuredData') ? opts.useStructuredData : !opts.type;
     this.defaultSeverity = opts.defaultSeverity || opts.defaultLevel || 'notice';
     var PEN = parseInt(opts.PEN, 10);
     this.PEN = !isNaN(PEN) ? PEN : null;
-    
+
     this.glossy = new Producer({
         type: opts.type,
         facility: typeof opts.facility === 'string' ? opts.facility.toLowerCase() : 'local0',
@@ -85,47 +85,47 @@ inherits(SyslogStream, Transform);
 
 SyslogStream.prototype._transform = function (_record, NA, callback) { // jshint maxstatements: 25, maxcomplexity: 12
     var valid, str, record = clone(_record);
-    
+
     if (this.decodeBuffers && Buffer.isBuffer(record)) {
         record = record.toString();
     }
-    
+
     if (this.decodeJSON) {
         try { record = JSON.parse(record); }
         catch (e) { }
     }
-    
+
     if (typeof record === 'string') {
         str = this.buildStringMessage(record);
     }
-    
+
     if (!str && record && record.msg) {
         record.level = this.convertBunyanLevel(record.level);
-        
+
         valid = Joi.validate(record, bunyanRecord, { allowUnknown: true, convert: true });
         if (valid.error === null) {
             str = this.buildBunyanMessage(valid.value);
         }
     }
-    
+
     if (!str && record && record.message) {
         valid = Joi.validate(record, glossyRecord, { allowUnknown: false, convert: true });
         if (valid.error === null) {
             str = this.buildGlossyMessage(valid.value);
         }
     }
-    
+
     if (!str || str === false) {
         str = this.buildJSONMessage(clone(_record));
     }
-    
+
     this.push(str+'\n');
     callback();
 };
 
 SyslogStream.prototype.formatObject = function (obj) {
     var seen = [ ];
-    
+
     return JSON.stringify(obj, function (key, val) {
         if (!val || typeof val !== 'object') { return val; }
         if (seen.indexOf(val) > -1) { return '[Circular]'; }
@@ -150,14 +150,14 @@ SyslogStream.prototype.buildJSONMessage = function (obj) {
 
 SyslogStream.prototype.buildGlossyMessage = function (record) {
     record.severity = record.severity || this.defaultSeverity;
-    
+
     var structured = this.useStructuredData && record.structuredData ?
         this.validateStructuredData(record.structuredData) : { };
-    
+
     if (structured.data) {
         record.structuredData = structured.data;
     }
-    
+
     if (structured.extra) {
         record.message += ' ' + this.formatObject(structured.extra);
     }
@@ -194,11 +194,11 @@ SyslogStream.prototype.buildBunyanMessage = function (source) {
         acc[key] = source[key];
         return acc;
     }, { });
-    
+
     var structured = this.useStructuredData ?
         this.validateStructuredData(extra) :
         Object.keys(extra).length ? { extra: extra } : { };
-        
+
     return this.glossy.produce({
         facility: source.facility,
         severity: SYSLOG.LEVEL[source.level],
@@ -214,9 +214,9 @@ SyslogStream.prototype.buildBunyanMessage = function (source) {
 SyslogStream.prototype.convertBunyanLevel = function (level) { // jshint maxstatements: 18, maxcomplexity: 10
     if (typeof level === 'string') { level = BUNYAN[level.toUpperCase()]; }
     level = parseInt(level, 10);
-    
+
     if (isNaN(level)) { level = BUNYAN.INFO; }
-    
+
     if (level >= BUNYAN.FATAL) { return SYSLOG.LEVEL.EMERG; }
     if (level >= BUNYAN.ERROR) { return SYSLOG.LEVEL.ERR; }
     if (level >= BUNYAN.WARN)  { return SYSLOG.LEVEL.WARNING; }
@@ -228,7 +228,7 @@ SyslogStream.prototype.convertBunyanLevel = function (level) { // jshint maxstat
 var INVALID_SDID = /[^\u0020-\u007e]|[@=\]"\s]/;
 SyslogStream.prototype.validateStructuredData = function (obj) {
     var structured = { data: { }, extra: { } };
-    
+
     var result = Joi.validate(obj, structuredData, { stripUnknown: true, convert: true });
     if (result.error === null &&
         obj.meta &&
@@ -237,18 +237,18 @@ SyslogStream.prototype.validateStructuredData = function (obj) {
     {
         result.error = 'Invalid language tag';
     }
-    
+
     if (result.error === null) {
         structured.data = result.value;
     } else {
         structured.extra.SD_VALIDATION_ERROR = result.error.message || result.error;
     }
-    
+
     Object.keys(obj).filter(function (key) {
         return !(key in STRUCTURED_FIELDS);
     }).forEach(function (key) {
         var kv = obj[key];
-        
+
         if (this.PEN &&
             !(INVALID_SDID.test(key)) &&
             kv && typeof kv === 'object' &&
@@ -260,11 +260,11 @@ SyslogStream.prototype.validateStructuredData = function (obj) {
             structured.extra[key] = obj[key];
         }
     }, this);
-    
+
     if (Object.keys(structured.extra).length === 0) { structured.extra = null; }
     if (Object.keys(structured.data).length === 0) { structured.data = null; }
-    
-    
+
+
     return structured;
 };
 
