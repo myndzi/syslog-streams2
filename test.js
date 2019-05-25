@@ -70,14 +70,18 @@ var SYSLOG = {
         LOCAL7: 23
     }
 };
+
+/* istanbul ignore next */
+var bufferFrom = Buffer.from || function (arg) { return new Buffer(arg); }
+
 describe('SyslogStream', function () {
     var syslog, stream;
-    
+
     // cheating - relying on emit's synchronous behavior
     function getMsg(r, log) {
         var msg;
         if (!log) { log = syslog; }
-        
+
         log.once('data', function (chunk) {
             msg = chunk.toString();
         });
@@ -88,7 +92,7 @@ describe('SyslogStream', function () {
         var msg = getMsg(r, log);
         return msg.split(' ').slice(0, 7);
     }
-    
+
     beforeEach(function () {
         syslog = new SyslogStream({
             name: TEST.NAME,
@@ -98,7 +102,7 @@ describe('SyslogStream', function () {
             hostname: TEST.HOSTNAME
         });
     });
-    
+
     afterEach(function (done) {
         syslog.end(done);
     });
@@ -125,23 +129,23 @@ describe('SyslogStream', function () {
                 process.title = _title;
                 process.argv = _argv;
             });
-            
+
             it('should respect the specified value', function () {
                 var log = new SyslogStream({ appName: TEST.NAME });
                 getHeader('bar', log)[3].should.equal(TEST.NAME);
-                
+
                 var log = new SyslogStream({ name: TEST.NAME });
                 getHeader('bar', log)[3].should.equal(TEST.NAME);
             });
             it('should fall back on process.title', function () {
                 process.title = 'process.title';
-                
+
                 var log = new SyslogStream();
                 getHeader('bar', log)[3].should.equal('process.title');
             });
             it('should fall back on process.argv[0]', function () {
                 process.argv = ['process.argv'];
-                
+
                 var log = new SyslogStream();
                 getHeader('bar', log)[3].should.equal('process.argv');
             });
@@ -161,13 +165,13 @@ describe('SyslogStream', function () {
             it('should respect the specified hostname', function () {
                 var log = new SyslogStream({ host: TEST.HOSTNAME });
                 getHeader('bar', log)[2].should.equal(TEST.HOSTNAME);
-                
+
                 var log = new SyslogStream({ hostname: TEST.HOSTNAME });
                 getHeader('bar', log)[2].should.equal(TEST.HOSTNAME);
             });
             it('should fall back on os.hostname()', function () {
                 os.hostname = function () { return 'os.hostname'; }
-                
+
                 var log = new SyslogStream();
                 getHeader('bar', log)[2].should.equal('os.hostname');
             });
@@ -190,7 +194,7 @@ describe('SyslogStream', function () {
             });
             it('should fall back on process.pid', function () {
                 process.pid = 2;
-                
+
                 var log = new SyslogStream();
                 getHeader('bar', log)[4].should.equal('2');
             });
@@ -203,7 +207,7 @@ describe('SyslogStream', function () {
             it('should respect the specified hostname', function () {
                 var log = new SyslogStream({ msgID: TEST.MSG_ID });
                 getHeader('bar', log)[5].should.equal(TEST.MSG_ID);
-                
+
                 var log = new SyslogStream({ msgId: TEST.MSG_ID });
                 getHeader('bar', log)[5].should.equal(TEST.MSG_ID);
             });
@@ -216,25 +220,25 @@ describe('SyslogStream', function () {
             var log = new SyslogStream({
                 decodeBuffers: true
             });
-            getMsg(new Buffer('foo'), log).should.match(/foo$/);
-            
+            getMsg(bufferFrom('foo'), log).should.match(/foo$/);
+
             var log = new SyslogStream({
                 decodeBuffers: false
             });
-            
+
             try {
-                getMsg(new Buffer('foo'), log).should.match(/\[102,111,111\]$/);
+                getMsg(bufferFrom('foo'), log).should.match(/\[102,111,111\]$/);
             } catch (e) {
-                getMsg(new Buffer('foo'), log).should.match(/\{"type":"Buffer","data":\[102,111,111\]\}$/);
+                getMsg(bufferFrom('foo'), log).should.match(/\{"type":"Buffer","data":\[102,111,111\]\}$/);
             }
-                
+
         });
         it('should respect the decodeJSON option', function () {
             var log = new SyslogStream({
                 decodeJSON: true
             });
             getMsg('{"msg":"foo"}', log).should.match(/foo$/);
-            
+
             var log = new SyslogStream({
                 decodeJSON: false
             });
@@ -245,18 +249,18 @@ describe('SyslogStream', function () {
                 decodeBuffers: true,
                 decodeJSON: true
             });
-            getMsg(new Buffer('{"msg":"foo"}'), log).should.match(/foo$/);
+            getMsg(bufferFrom('{"msg":"foo"}'), log).should.match(/foo$/);
         });
         it('should respect the useStructuredData option', function () {
             var log = new SyslogStream({ useStructuredData: true, PEN: 1 });
             getMsg({ msg: 'foo', data: { bar: 'baz' } }, log).should.match(/\[data@1 bar="baz"\] foo$/);
-            
+
             var log = new SyslogStream({ useStructuredData: true });
             getMsg({ msg: 'foo' }, log).should.match(/- foo$/);
-            
+
             var log = new SyslogStream({ useStructuredData: false, PEN: 1 });
             getMsg({ msg: 'foo', data: { bar: 'baz' } }, log).should.match(/- foo \{"data":\{"bar":"baz"\}\}$/);
-            
+
             var log = new SyslogStream({ useStructuredData: false});
             getMsg({ msg: 'foo' }, log).should.match(/- foo$/);
         });
@@ -345,11 +349,11 @@ describe('SyslogStream', function () {
             r.msg = 'foo';
             var msg = getMsg(r, log);
 
-            var matched = msg.split(' ').slice(6).join(' ').replace(/\\\\/, '').match(/(\[(\\\]|[^\]])+\])+/);
-            
+            var matched = msg.split(' ').slice(6).join(' ').replace(/\\\\/, '').match(/^(\[(\\\]|[^\]])+\])+/);
+
             return matched ? matched[0] : '';
         };
-        
+
         describe('standard SDIDs', function () {
             describe('timeQuality', function () {
                 it('should validate with no arguments', function () {
@@ -388,7 +392,7 @@ describe('SyslogStream', function () {
                     var rec = { timeQuality: { isSynced: 0, syncAccuracy: 123 } };
                     SD(rec).should.equal('');
                     rec.msg = 'foo';
-                    getMsg(rec).should.match(/syncAccuracy is not allowed/);
+                    getMsg(rec).should.match(/syncAccuracy.*is not allowed/);
                 });
             });
             describe('origin', function () {
@@ -406,7 +410,7 @@ describe('SyslogStream', function () {
                     var rec = { origin: { ip: '.' } };
                     SD(rec).should.equal('');
                     rec.msg = 'foo';
-                    getMsg(rec).should.match(/ip must be a valid hostname/);
+                    getMsg(rec).should.match(/ip.*must be a valid hostname/);
                 });
                 it('should accept an array', function () {
                     SD({ origin: { ip: ['127.0.0.1', '127.0.0.2'] } }).should.equal('[origin ip="127.0.0.1" ip="127.0.0.2"]');
@@ -520,7 +524,7 @@ describe('SyslogStream', function () {
         it('should convert a buffer to a string', function () {
             var _decodeBuffers = syslog.decodeBuffers;
             syslog.decodeBuffers = true;
-            getMsg(new Buffer('foo')).should.match(/foo$/);
+            getMsg(bufferFrom('foo')).should.match(/foo$/);
             syslog.decodeBuffers = _decodeBuffers;
         });
         it('should decode JSON if possible', function () {
@@ -591,7 +595,7 @@ describe('SyslogStream', function () {
                 msg: 'hai',
                 '@': 'foo'
             }).should.match(/{"@":"foo"}$/);
-            
+
             getMsg({
                 msg: 'foo',
                 timeQuality: {
@@ -636,7 +640,7 @@ describe('SyslogStream', function () {
                     '@': 'foo'
                 }
             }).should.match(/{"@":"foo"}$/);
-            
+
             getMsg({
                 message: 'foo',
                 structuredData: {

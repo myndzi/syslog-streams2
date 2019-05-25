@@ -23,15 +23,15 @@
     "rfc5424"
   ],
   "dependencies": {
+    "@hapi/joi": "^15.0.3",
+    "@myndzi/glossy": "^0.1.10",
     "clone": "^0.1.19",
-    "@myndzi/glossy": "^0.1.7",
-    "joi": "^5.0.2",
     "language-tags": "^1.0.2"
   },
   "devDependencies": {
-    "istanbul": "^0.3.5",
-    "jshint": "^2.5.10",
-    "mocha": "^2.0.1",
-    "should": "^4.3.1"
+    "istanbul": "^0.4.5",
+    "jshint": "^2.10.2",
+    "mocha": "^6.1.4",
+    "should": "^13.2.3"
   }
 }

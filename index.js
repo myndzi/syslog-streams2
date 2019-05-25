@@ -8,7 +8,7 @@ var Producer = require('@myndzi/glossy').Produce;
 
 var clone = require('clone'),
     tags = require('language-tags'),
-    Joi = require('joi');
+    Joi = require('@hapi/joi');
 
 var bunyanRecord = Joi.object().keys({
     v: Joi.number().integer().min(0),
@@ -42,7 +42,7 @@ var structuredData = Joi.object().keys({
     origin: Joi.object().keys({
         ip: [
             Joi.string().hostname(),
-            Joi.array().includes(
+            Joi.array().items(
                 Joi.string().hostname()
             )
         ],
@@ -263,7 +263,6 @@ SyslogStream.prototype.validateStructuredData = function (obj) {
 
     if (Object.keys(structured.extra).length === 0) { structured.extra = null; }
     if (Object.keys(structured.data).length === 0) { structured.data = null; }
-
 
     return structured;
 };
