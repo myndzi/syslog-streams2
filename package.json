@@ -8,6 +8,7 @@
   },
   "main": "index.js",
   "scripts": {
+    "bamp": "bamp",
     "test": "istanbul cover node_modules/.bin/_mocha -- -u bdd -R spec --bail test.js;jshint index.js"
   },
   "author": "Kris Reeves",
@@ -29,6 +30,7 @@
     "language-tags": "^1.0.2"
   },
   "devDependencies": {
+    "bamp": "^1.0.11",
     "istanbul": "^0.4.5",
     "jshint": "^2.10.2",
     "mocha": "^6.1.4",
