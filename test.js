@@ -316,7 +316,14 @@ describe('SyslogStream', function () {
                 var now = new Date();
                 var ts = new Date(header(1));
 
-                Math.abs(now-ts).should.be.within(0, 10);
+                Math.abs(now-ts).should.be.within(0, 400);
+            });
+            // will fail 1/1000 times if we're unlucky, designed to guard
+            // against a glossy regression where milliseconds were truncated
+            // while allowing the previous test to not be so time-sensitive
+            it('should retain milliseconds on the default timestamp', function () {
+                var ts = new Date(header(1));
+                ts.getMilliseconds().should.not.equal(0);
             });
             it('should use the provided timestamp if given', function () {
                 var then = new Date();
