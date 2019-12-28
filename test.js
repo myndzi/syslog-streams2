@@ -329,7 +329,7 @@ describe('SyslogStream', function () {
                 var then = new Date();
                 then.setFullYear(then.getFullYear() - 1);
 
-                header({ time: then }, 1).should.equal(then.toISOString());
+                new Date(header({ time: then }, 1)).getTime().should.equal(then.getTime());
             });
             it('should use the NILVALUE if given false for the timestamp', function () {
                 header({ time: 'foo' }, 1).should.equal(SYSLOG.NILVALUE);
